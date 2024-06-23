@@ -1,5 +1,9 @@
 from re import sub
 from urllib.parse import quote
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 from telegram import (
     BotCommand,
@@ -81,7 +85,7 @@ async def bard_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"{content[: 4095 - len(sources)]}.{sources}", reply_markup=markup
             )
         else:
-            print(f"[e] {e}")
+            logger.error(f"[e] {e}")
             await message.edit_text(f"❌ Error orrurred: {e}. /reset")
 
 
@@ -157,7 +161,7 @@ async def recv_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif str(e).startswith("Can't parse entities"):
                 await message.edit_text(f"{response[:4095]}.")
             else:
-                print(f"[e] {e}")
+                logger.error(f"[e] {e}")
                 await message.edit_text(f"❌ Error orrurred: {e}. /reset")
 
     else:  # Bard
@@ -338,7 +342,7 @@ async def start_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• /mode to switch between Claude & Bard",
         "• /settings to show Claude & Bard settings",
     ]
-    print(f"[i] {update.effective_user.username} started the bot")
+    logger.info(f"[i] {update.effective_user.username} started the bot")
     await update.message.reply_text("\n".join(welcome_strs), parse_mode=ParseMode.HTML)
 
 
@@ -350,7 +354,7 @@ async def send_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f"[e] {context.error}")
+    logger.error(f"[e] {context.error}")
     await update.message.reply_text(f"❌ Error orrurred: {context.error}. /reset")
 
 
@@ -368,7 +372,7 @@ async def post_init(application: Application):
 
 
 def run_bot():
-    print(f"[+] bot started, calling loop!")
+    logger.info(f"[+] bot started, calling loop!")
     application = (
         ApplicationBuilder()
         .token(bot_token)
@@ -376,8 +380,14 @@ def run_bot():
         .concurrent_updates(True)
         .build()
     )
+    user_filter = filters.ALL
+    if len(user_ids) > 0:
+        usernames = [x for x in user_ids if isinstance(x, str)]
+        any_ids = [x for x in user_ids if isinstance(x, int)]
+        user_ids2 = [x for x in any_ids if x > 0]
+        group_ids = [x for x in any_ids if x < 0]
+        user_filter = filters.User(username=usernames) | filters.User(user_id=user_ids2) | filters.Chat(chat_id=group_ids)
 
-    user_filter = filters.Chat(chat_id=user_ids)
     msg_filter = filters.TEXT
 
     handler_list = [
