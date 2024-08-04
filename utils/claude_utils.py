@@ -1,11 +1,9 @@
-from anthropic import AI_PROMPT, HUMAN_PROMPT, AsyncAnthropic
-
-from config import claude_api
-
+from anthropic import AsyncAnthropic, HUMAN_PROMPT, AI_PROMPT
+from config import claude_api, claude_default_model
 
 class Claude:
     def __init__(self):
-        self.model = "claude-2"
+        self.model = claude_default_model  # Use the default model from config
         self.temperature = 0.7
         self.cutoff = 50
         self.client = AsyncAnthropic(api_key=claude_api)
@@ -18,7 +16,8 @@ class Claude:
         self.prompt = self.prompt[: self.prompt.rfind(HUMAN_PROMPT)]
 
     def change_model(self, model):
-        valid_models = {"claude-2", "claude-instant-1"}
+        # Updated list of valid models
+        valid_models = {"claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-2.1", "claude-instant-1.2"}
         if model in valid_models:
             self.model = model
             return True
@@ -49,12 +48,14 @@ class Claude:
         response = await self.client.completions.create(
             prompt=self.prompt,
             model=self.model,
-            temperature=self.temperature,
-            stream=True,
             max_tokens_to_sample=100000,
+            temperature=self.temperature,
+            stream=True
         )
         answer = ""
-        async for data in response:
-            answer = f"{answer}{data.completion}"
+        async for completion in response:
+            if completion.stop_reason:
+                break
+            answer += completion.completion
             yield answer
         self.prompt = f"{self.prompt}{answer}"
