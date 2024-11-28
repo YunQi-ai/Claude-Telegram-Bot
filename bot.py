@@ -1,3 +1,6 @@
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
 from re import sub
 from urllib.parse import quote
 import logging
@@ -35,7 +38,6 @@ def get_session(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.chat_data[mode] = {"session": Session(mode)}
     return mode, context.chat_data[mode]["session"]
 
-
 async def reset_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mode, session = get_session(update, context)
     session.reset()
@@ -45,24 +47,17 @@ async def reset_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.chat_data[mode].pop("drafts", None)
     await update.message.reply_text("🧹 Chat history has been reset.")
 
-
-# Google bard: view other drafts
 async def view_other_drafts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     last_msg_id = context.chat_data["Bard"].get("last_msg_id")
     if last_msg_id is not None and update.callback_query.data == f"{last_msg_id}":
-        # increase choice index
         context.chat_data["Bard"]["drafts"]["index"] = (
             context.chat_data["Bard"]["drafts"]["index"] + 1
         ) % len(context.chat_data["Bard"]["drafts"]["choices"])
         await bard_response(update, context)
 
-
-# Google bard: response
 async def bard_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     session = context.chat_data["Bard"]["session"]
-    message, markup, sources, choices, index = context.chat_data["Bard"][
-        "drafts"
-    ].values()
+    message, markup, sources, choices, index = context.chat_data["Bard"]["drafts"].values()
     session.client.choice_id = choices[index]["id"]
     content = choices[index]["content"][0]
     _content = sub(
@@ -86,7 +81,7 @@ async def bard_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         else:
             logger.error(f"[e] {e}")
-            await message.edit_text(f"❌ Error orrurred: {e}. /reset")
+            await message.edit_text(f"❌ Error occurred: {e}. /reset")
 
 
 async def recv_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -142,8 +137,8 @@ async def recv_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if mode == "Claude":
         prev_response = ""
         async for response in session.send_message_stream(input_text):
-            response = response[:4096]
-            if abs(len(response) - len(prev_response)) < session.cutoff:
+            response = response[:4096]  # Telegram message limit
+            if abs(len(response) - len(prev_response)) < session.cutoff:  # Use a fixed cutoff or adjust as needed
                 continue
             prev_response = response
             await message.edit_text(response)
@@ -162,7 +157,7 @@ async def recv_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await message.edit_text(f"{response[:4095]}.")
             else:
                 logger.error(f"[e] {e}")
-                await message.edit_text(f"❌ Error orrurred: {e}. /reset")
+                await message.edit_text(f"❌ Error occurred: {e}. /reset")
 
     else:  # Bard
         response = await session.send_message(input_text)
@@ -257,7 +252,6 @@ async def show_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     infos.extend(extras)
     await update.message.reply_text("\n".join(infos), parse_mode=ParseMode.HTML)
 
-
 async def change_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if single_mode:
         return await update.message.reply_text(f"❌ You cannot access the other mode.")
@@ -280,7 +274,6 @@ async def change_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.HTML,
         )
 
-
 async def change_model(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mode, session = get_session(update, context)
 
@@ -295,7 +288,6 @@ async def change_model(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"🤖 Model has been switched to <b>{model}</b>.", parse_mode=ParseMode.HTML
     )
-
 
 async def change_temperature(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mode, session = get_session(update, context)
@@ -313,7 +305,6 @@ async def change_temperature(update: Update, context: ContextTypes.DEFAULT_TYPE)
         parse_mode=ParseMode.HTML,
     )
 
-
 async def change_cutoff(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mode, session = get_session(update, context)
 
@@ -328,7 +319,6 @@ async def change_cutoff(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"✂️ Cutoff has been set to <b>{cutoff}</b>.", parse_mode=ParseMode.HTML
     )
-
 
 async def start_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_strs = [
@@ -345,17 +335,15 @@ async def start_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"[i] {update.effective_user.username} started the bot")
     await update.message.reply_text("\n".join(welcome_strs), parse_mode=ParseMode.HTML)
 
-
 async def send_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"Your chat identifier is `{update.effective_chat.id}`, send it to the bot admin to get access\\.",
         parse_mode=ParseMode.MARKDOWN_V2,
     )
 
-
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.error(f"[e] {context.error}")
-    await update.message.reply_text(f"❌ Error orrurred: {context.error}. /reset")
+    await update.message.reply_text(f"❌ Error occurred: {context.error}. /reset")
 
 
 async def post_init(application: Application):
@@ -369,7 +357,6 @@ async def post_init(application: Application):
             BotCommand("/help", "Get help message"),
         ]
     )
-
 
 def run_bot():
     logger.info(f"[+] bot started, calling loop!")
@@ -409,6 +396,7 @@ def run_bot():
 
     application.run_polling(drop_pending_updates=True)
 
-
 if __name__ == "__main__":
     run_bot()
+
+

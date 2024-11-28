@@ -1,23 +1,20 @@
-from anthropic import AsyncAnthropic, HUMAN_PROMPT, AI_PROMPT
+from anthropic import AsyncAnthropic
 from config import claude_api, claude_default_model
 
 class Claude:
     def __init__(self):
-        self.model = claude_default_model  # Use the default model from config
+        self.model = claude_default_model
+	self.cutoff = 50
         self.temperature = 0.7
-        self.cutoff = 50
+        self.max_tokens = 1000
         self.client = AsyncAnthropic(api_key=claude_api)
-        self.prompt = ""
+        self.messages = []
 
     def reset(self):
-        self.prompt = ""
-
-    def revert(self):
-        self.prompt = self.prompt[: self.prompt.rfind(HUMAN_PROMPT)]
+        self.messages = []
 
     def change_model(self, model):
-        # Updated list of valid models
-        valid_models = {"claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-2.1", "claude-instant-1.2"}
+        valid_models = {"claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-2.1", "claude-2.0"}
         if model in valid_models:
             self.model = model
             return True
@@ -33,29 +30,36 @@ class Claude:
             return True
         return False
 
-    def change_cutoff(self, cutoff):
+    def change_max_tokens(self, max_tokens):
         try:
-            cutoff = int(cutoff)
+            max_tokens = int(max_tokens)
         except ValueError:
             return False
-        if cutoff > 0:
-            self.cutoff = cutoff
+        if max_tokens > 0:
+            self.max_tokens = max_tokens
             return True
         return False
 
     async def send_message_stream(self, message):
-        self.prompt = f"{self.prompt}{HUMAN_PROMPT} {message}{AI_PROMPT}"
-        response = await self.client.completions.create(
-            prompt=self.prompt,
+        self.messages.append({"role": "user", "content": message})
+        
+        response = await self.client.messages.create(
             model=self.model,
-            max_tokens_to_sample=100000,
+            messages=self.messages,
+            max_tokens=self.max_tokens,
             temperature=self.temperature,
             stream=True
         )
+        
         answer = ""
-        async for completion in response:
-            if completion.stop_reason:
-                break
-            answer += completion.completion
-            yield answer
-        self.prompt = f"{self.prompt}{answer}"
+        async for chunk in response:
+            if chunk.type == 'content_block_start':
+                content_block = chunk.content_block
+            elif chunk.type == 'content_block_delta':
+                answer += chunk.delta.text
+                yield answer
+            elif chunk.type == 'content_block_stop':
+                pass
+
+        self.messages.append({"role": "assistant", "content": answer})
+
