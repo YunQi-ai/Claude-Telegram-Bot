@@ -1,0 +1,9 @@
+[tool]
+# Enable uv's build isolation
+isolated = true
+
+# Use modern wheels when possible
+use-modern-wheels = true
+
+# Enable dependency caching
+cache = true 

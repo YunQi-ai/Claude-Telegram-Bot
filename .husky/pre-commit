@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run Ruff linting using UV's venv
+.venv/bin/python -m ruff check .
+.venv/bin/python -m ruff format --check . 

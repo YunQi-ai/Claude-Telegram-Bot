@@ -1,0 +1,12 @@
+{
+  "name": "bot-project",
+  "private": true,
+  "scripts": {
+    "lint": "ruff check .",
+    "format": "ruff format .",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.0.11"
+  }
+} 

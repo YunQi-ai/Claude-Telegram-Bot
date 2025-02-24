@@ -1,2 +1,3 @@
-source venv/bin/activate
-nohup python3 bot.py > bot.log 2>&1 &
+#!/usr/bin/env sh
+. .venv/bin/activate
+nohup python bot.py > bot.log 2>&1 &
